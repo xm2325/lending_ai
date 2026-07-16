@@ -1,0 +1,18 @@
+{
+  "challenger": "TCN",
+  "champion": "Histogram gradient boosting",
+  "technical_status": "retain_tabular_champion",
+  "research_release_scope": "public benchmark only",
+  "auc_noninferiority_gate": false,
+  "calibration_noninferiority_gate": false,
+  "operational_signal_gate": false,
+  "sequence_order_signal": true,
+  "hard_data_quality_failures": 0,
+  "production_blockers": [
+    "no point-in-time application timestamps",
+    "no UK population or policy data",
+    "no rejected-applicant outcomes",
+    "no loss-given-default or treatment-effect evidence",
+    "no independent model validation"
+  ]
+}

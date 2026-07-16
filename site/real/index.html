@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lending AI real-data review</title>
+<style>
+:root{--bg:#07111f;--panel:#0e1b2d;--ink:#eef5ff;--muted:#9db0c9;--line:#243650;--accent:#74c0fc;--good:#8ce99a;--warn:#ffd43b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,sans-serif}
+main{max-width:1180px;margin:auto;padding:42px 20px 80px}h1{font-size:42px;margin:0 0 8px}h2{margin-top:36px}p{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.value{font-size:25px;font-weight:750;margin-top:5px}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:block;overflow-x:auto}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right}th:first-child,td:first-child{text-align:left}th{color:var(--accent)}
+.badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#203a2a;color:var(--good);font-weight:700}.note{border-left:4px solid var(--warn);padding:10px 14px;background:#241f0d}
+</style></head><body><main>
+<div class="label">Real public-data decision review</div><h1>Lending AI Lab</h1>
+<p>Shared-fold comparison of a strong tabular champion with LSTM, TCN and Transformer challengers. This page does not claim UK production validity.</p>
+<div class="grid">
+<div class="card"><div class="label">Champion</div><div class="value">Histogram gradient boosting</div></div>
+<div class="card"><div class="label">Best deep challenger</div><div class="value">TCN</div></div>
+<div class="card"><div class="label">Technical gate</div><div class="value"><span class="badge">retain_tabular_champion</span></div></div>
+<div class="card"><div class="label">Customers</div><div class="value">30,000</div></div>
+</div>
+<h2>Model scorecard</h2><table><thead><tr><th>model</th><th>roc_auc</th><th>average_precision</th><th>brier_score</th><th>ece_10</th><th>recall_at_10pct</th><th>exposure_capture_at_10pct</th></tr></thead><tbody><tr><td>Histogram gradient boosting</td><td>0.7839</td><td>0.5557</td><td>0.1338</td><td>0.0052</td><td>0.3159</td><td>0.4084</td></tr><tr><td>TCN</td><td>0.7747</td><td>0.5441</td><td>0.1365</td><td>0.0073</td><td>0.3064</td><td>0.3491</td></tr><tr><td>LSTM</td><td>0.7711</td><td>0.5268</td><td>0.1378</td><td>0.0081</td><td>0.2963</td><td>0.3419</td></tr><tr><td>Transformer</td><td>0.7709</td><td>0.5179</td><td>0.1391</td><td>0.0053</td><td>0.2910</td><td>0.3223</td></tr></tbody></table>
+<h2>Paired uncertainty</h2><p>Positive improvement means the challenger is better. Confidence intervals are customer-level paired bootstrap intervals.</p>
+<table><thead><tr><th>metric</th><th>improvement</th><th>ci_low</th><th>ci_high</th><th>probability_improvement</th></tr></thead><tbody><tr><td>roc_auc</td><td>-0.0093</td><td>-0.0125</td><td>-0.0060</td><td>0.0000</td></tr><tr><td>average_precision</td><td>-0.0117</td><td>-0.0176</td><td>-0.0050</td><td>0.0000</td></tr><tr><td>brier_score</td><td>-0.0027</td><td>-0.0034</td><td>-0.0020</td><td>0.0000</td></tr><tr><td>exposure_capture_at_10pct</td><td>-0.0593</td><td>-0.0771</td><td>-0.0424</td><td>0.0000</td></tr></tbody></table>
+<h2>Feed and stress sensitivity</h2><table><thead><tr><th>scenario</th><th>mean_score_shift</th><th>top_10pct_overlap</th><th>roc_auc</th><th>brier_score</th></tr></thead><tbody><tr><td>baseline</td><td>0.0000</td><td>1.0000</td><td>0.7747</td><td>0.1365</td></tr><tr><td>reversed_history</td><td>-0.0170</td><td>0.6230</td><td>0.7409</td><td>0.1497</td></tr><tr><td>latest_month_unavailable</td><td>-0.0172</td><td>0.8203</td><td>0.7427</td><td>0.1458</td></tr><tr><td>latest_payment_feed_missing</td><td>0.0002</td><td>0.9970</td><td>0.7740</td><td>0.1366</td></tr><tr><td>delinquency_feed_missing</td><td>-0.0951</td><td>0.1033</td><td>0.6139</td><td>0.1776</td></tr><tr><td>latest_utilisation_plus_20pct</td><td>0.0011</td><td>0.9790</td><td>0.7735</td><td>0.1367</td></tr><tr><td>shared_random_permutation</td><td>-0.0046</td><td>0.7583</td><td>0.7534</td><td>0.1456</td></tr></tbody></table>
+<h2>Decision boundary</h2><div class="note">Research benchmark only. Production promotion requires point-in-time UK data, policy-selection analysis, outcome maturity, customer-impact review and independent validation.</div>
+</main></body></html>

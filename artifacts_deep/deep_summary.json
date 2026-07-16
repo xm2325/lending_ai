@@ -1,0 +1,13 @@
+{
+  "dataset": "UCI Default of Credit Card Clients",
+  "n_customers": 30000,
+  "folds": 3,
+  "epochs": 6,
+  "champion": "Histogram gradient boosting",
+  "best_deep_challenger": "TCN",
+  "best_model_overall": "Histogram gradient boosting",
+  "technical_status": "retain_tabular_champion",
+  "validation": "Shared customer-level stratified folds; not temporal validation",
+  "calibration": "Fold-local Platt scaling fitted only on inner validation customers",
+  "production_status": "blocked by public-data limitations"
+}
