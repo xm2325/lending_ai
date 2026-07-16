@@ -1,136 +1,181 @@
 # Lending AI Lab
 
-A business-first, reproducible workbench for sequence-aware credit-risk modelling and safe LLM servicing product review.
+A reproducible, business-first workbench for credit-risk modelling on monthly account histories and safe evaluation of LLM servicing products.
 
-> **Status:** reproducible public-data workbench. GitHub Actions downloads the official UCI dataset, records its licence and checksum, runs the real benchmark, and commits generated results. It does not represent Capital One data, policy or performance.
+> **Evidence boundary:** the checked-in real dataset is the public UCI Default of Credit Card Clients dataset. It does not represent Capital One, the United Kingdom, current lending policy or production performance.
 
-## Executive question
+## Decision first
 
-**Does monthly account history add enough early-warning value over a strong tree baseline to justify a controlled shadow test?**
+The strongest current real-data result is **not** a deep-learning win.
 
-The repository compares a latest-month logistic model, a flattened-history tree model, an LSTM fusion model and a Transformer fusion model. The recommendation is based on more than ROC AUC: it checks fixed-capacity recall, exposure capture, calibration, early detection, subgroup results, drift and latency.
+| Model | ROC AUC | Average precision | Brier score | Recall at top 10% | Exposure capture at top 10% |
+|---|---:|---:|---:|---:|---:|
+| Histogram gradient boosting | 0.7839 | 0.5557 | 0.1338 | 0.3159 | 0.4084 |
+| TCN | 0.7747 | 0.5441 | 0.1365 | 0.3064 | 0.3491 |
+| LSTM | 0.7711 | 0.5268 | 0.1378 | 0.2963 | 0.3419 |
+| Transformer | 0.7709 | 0.5179 | 0.1391 | 0.2910 | 0.3223 |
 
-## Why this project fits the role
-
-| Role requirement | Project evidence |
-|---|---|
-| Deep learning for underwriting | LSTM and Transformer models over monthly credit behaviour |
-| Sequential data | Six-month utilisation, payment, delinquency, balance-change and cash-share tokens |
-| Structured and unstructured product work | Credit sequence pipeline plus an LLM servicing evaluation pack |
-| Pre-training / fine-tuning understanding | The LLM design separates foundation-model choice from domain adaptation and offline product tests |
-| PyTorch and maintainable Python | Typed package, tests, CLI, CI, FastAPI contract and reproducible artifacts |
-| Business communication | Decision brief, model card, release gate and interactive review dashboard |
-| Cross-functional work | Separate outputs for risk, product, engineering, compliance and leadership |
-
-## Project flow
+The best deep challenger is the temporal convolutional network (TCN), but paired customer-level bootstrap results favour the tabular champion:
 
 ```text
-monthly account data + approved static fields
-                    |
-              time-based split
-                    |
-       baseline     |     sequence models
-    logistic/tree   |    LSTM/Transformer
-                    |
-   discrimination + calibration + early detection
-                    |
-     subgroup + drift + latency + value proxy
-                    |
-       keep champion / shadow test / stop
+ROC AUC improvement:                   -0.0093  (95% CI -0.0125 to -0.0060)
+Average-precision improvement:         -0.0117  (95% CI -0.0176 to -0.0050)
+Brier-score improvement:               -0.0027  (95% CI -0.0034 to -0.0020)
+Top-10% exposure-capture improvement:  -0.0593  (95% CI -0.0771 to -0.0424)
 ```
 
-## Run
+The technical decision is therefore:
 
-```bash
-python -m pip install -e ".[dev]"
-python -m lending_ai_lab.cli demo --n-samples 12000 --epochs 8 --output-dir artifacts
-pytest -q
-```
+> **Retain histogram gradient boosting as champion. Do not promote the neural challenger.**
 
-Open `site/index.html` after the experiment.
+This is a more useful deep-learning result than selecting a neural model because the job title mentions deep learning. The project shows how to test whether sequence models add decision value and how to stop them when they do not.
 
-## Outputs
+## What the project answers
+
+The workbench addresses the questions a lending data scientist is likely to face:
+
+- Does six-month history add value over the latest month alone?
+- Is a neural sequence model better than a strong tree model using the same information?
+- Are probability estimates calibrated on customers not used to fit the calibrator?
+- Does the neural model use month order, or only summary statistics?
+- What happens when the latest month, payment feed or delinquency feed is unavailable?
+- How many risky customers and how much default-linked exposure are captured at a fixed review capacity?
+- Are results stable across audit groups?
+- Which data failures should warn, degrade to a fallback, or stop scoring?
+- Is the evidence sufficient for shadow testing, or should the current champion remain in place?
+- Which conclusions cannot be made from public data?
+
+## Real-data findings
+
+### Account history adds signal
+
+With logistic regression, ROC AUC rises from 0.7399 with one month to 0.7571 with six months. The improvement is gradual rather than coming from one arbitrary history length.
+
+### Sequence order matters to the TCN
+
+The TCN ROC AUC falls from 0.7747 to 0.7409 when history is reversed, and to 0.7534 under a shared random month permutation. This indicates that the model uses temporal order, although that use does not produce better performance than the tree champion.
+
+### Delinquency is a critical feed
+
+Removing delinquency inputs reduces TCN ROC AUC from 0.7747 to 0.6139 and changes 89.7% of the customers in the top-10% review population. A production version should fail closed, use an approved fallback, or stop customer action when this feed is unavailable.
+
+### Latest-month availability matters
+
+Removing the latest month reduces TCN ROC AUC to 0.7427. This supports explicit history-completeness checks and separate cold-start policies.
+
+### Calibration is fold-local
+
+Each outer test fold is scored by a model trained on other customers. Platt calibration is fitted only on an inner validation subset, not on the outer test customers. The generated report includes expected calibration error, calibration intercept and calibration slope.
+
+## Repository structure
 
 ```text
-artifacts/model_metrics.csv
-artifacts/prefix_performance.csv
-artifacts/month_occlusion.csv
-artifacts/subgroup_metrics.csv
-artifacts/feature_drift.csv
-artifacts/threshold_value_curve.csv
-artifacts/latency.csv
-artifacts/summary.json
-site/index.html
+src/lending_ai_lab/
+  data/                  UCI and synthetic adapters
+  models/                logistic, tree, LSTM, GRU, TCN and Transformer models
+  evaluation/            calibration, paired uncertainty, drift, fairness and data checks
+  deep_real_experiment.py
+  real_experiment.py
+  experiment.py
+  serving/               FastAPI contract and fail-closed loading
+
+artifacts_real/           tabular real-data benchmark
+artifacts_deep/           shared-fold deep benchmark and promotion gate
+docs/                     generated decision reports and design records
+site/                     GitHub Pages review dashboards
+tests/                    unit and integration checks
+.github/workflows/        CI, real-data benchmark, deep benchmark and Pages deployment
 ```
 
-## Real-data adapter
+## Reproduce the real benchmark
 
-`load_uci_default()` maps the public UCI default-of-credit-card-clients data into six monthly tokens. Install the optional Excel dependency and pass a local file path:
-
-```python
-from lending_ai_lab.data.uci_default import load_uci_default
-
-data = load_uci_default("data/raw/default_of_credit_card_clients.xls")
-```
-
-The UCI adapter is for a public benchmark, not a claim that its population, labels or policy match UK underwriting.
-
-## Current synthetic smoke-test finding
-
-The first reproducible run does **not** force a deep-learning win. The latest-month logistic model remains the non-sequential champion on overall discrimination, while the sequence challenger can capture more default-linked exposure inside a fixed top-10% review capacity. The proposed action is therefore champion/challenger shadow testing, not automatic replacement. This is a stronger lending-science story than selecting a neural model only because the role mentions deep learning.
-
-## Key design choices
-
-Protected audit fields are excluded from model inputs. Data are split by time cohort rather than randomly. Deep models receive random history truncation during training so that early-warning curves can be tested. The tree model receives the full flattened sequence, making it a harder baseline than a latest-month-only comparison.
-
-The business-value curve is labelled as a proxy because real loss given default, treatment effect, operational cost and customer outcome data are unavailable. This avoids turning an assumed cost matrix into a false profit claim.
-
-## LLM servicing module
-
-`data/sample/llm_servicing_cases.jsonl` and `lending_ai_lab.llm_eval` define a small offline test harness for an LLM servicing assistant. High-risk requests must be escalated, factual answers must cite approved policy identifiers, and unsupported guarantees fail evaluation. See `docs/llm_servicing_design.md`.
-
-## Next production-grade work
-
-Replace synthetic data with approved, de-identified internal data; define a point-in-time feature store; test reject-inference and policy-selection bias; add macroeconomic stress cohorts; calibrate using later cohorts; estimate treatment effects before customer action; and document independent model validation.
-
-## v0.2: real-data benchmark
-
-The repository now separates two evidence levels:
-
-1. `demo`: a fully runnable synthetic time-cohort experiment for testing the production workflow.
-2. `uci`: a real public-data benchmark using all 30,000 UCI customers after the user downloads the official file or an unchanged CSV mirror.
-
-Run the real benchmark:
+The official UCI XLS file, licence record and SHA-256 checksum are stored under `data/raw/` and were retrieved by GitHub Actions under CC BY 4.0.
 
 ```bash
 python -m pip install -e ".[dev,uci]"
+
 python -m lending_ai_lab.cli uci \
-  --data-path data/raw/UCI_Credit_Card.csv \
+  --data-path data/raw/default_of_credit_card_clients.xls \
   --output-dir artifacts_real
+
+python -m lending_ai_lab.cli deep-uci \
+  --data-path data/raw/default_of_credit_card_clients.xls \
+  --output-dir artifacts_deep \
+  --folds 3 \
+  --epochs 6
 ```
 
-Outputs:
+Generate the reports and dashboard:
+
+```bash
+python scripts/build_real_report.py \
+  --artifacts artifacts_real \
+  --output docs/real_results.md
+
+python scripts/build_deep_report.py \
+  --artifacts artifacts_deep \
+  --output docs/deep_real_results.md
+
+python scripts/build_real_dashboard.py \
+  --artifacts artifacts_deep \
+  --output site/real/index.html
+```
+
+## Generated evidence
 
 ```text
 artifacts_real/real_model_metrics.csv
 artifacts_real/real_history_ablation.csv
-artifacts_real/real_subgroup_metrics.csv
 artifacts_real/real_sequence_controls.csv
+artifacts_real/real_subgroup_metrics.csv
 artifacts_real/real_summary.json
+
+artifacts_deep/deep_model_metrics.csv
+artifacts_deep/deep_fold_metrics.csv
+artifacts_deep/deep_paired_differences.csv
+artifacts_deep/deep_calibration_bins.csv
+artifacts_deep/deep_order_sensitivity.csv
+artifacts_deep/deep_stress_tests.csv
+artifacts_deep/data_quality_checks.csv
+artifacts_deep/promotion_gate.json
+artifacts_deep/deep_summary.json
+
+docs/real_results.md
+docs/deep_real_results.md
+site/real/index.html
 ```
 
-The real benchmark compares latest-month logistic regression, full-history logistic regression and histogram gradient boosting with customer-level cross-validation, bootstrap confidence intervals, history-length ablation, sequence-order controls and subgroup audit. It does **not** call the split temporal because UCI does not provide observation dates.
+## Automated controls
 
-The checked-in `data/sample/UCI_Credit_Card_sample.csv` contains only 20 authentic public rows and is used solely as a parser fixture. It is too small for performance reporting.
-
-## v0.3: automated real-data evidence
-
-The `real-data-benchmark` GitHub Action performs the complete reproducibility chain:
+GitHub Actions performs the following chain:
 
 ```text
-official UCI ZIP -> unchanged XLS -> SHA-256 + source record
-                 -> tests -> real-data benchmark -> generated report
-                 -> Actions artifact + committed results
+verify UCI SHA-256 and attribution
+        -> lint and tests
+        -> shared customer folds
+        -> fold-local calibration
+        -> paired bootstrap uncertainty
+        -> order and feed sensitivity
+        -> promotion gate
+        -> generated report and dashboard
+        -> committed reproducible evidence
 ```
 
-The checked-in source is permitted by the dataset's CC BY 4.0 licence and is accompanied by `data/raw/SOURCE.md`. The generated decision report is `docs/real_results.md`.
+The real source passed all hard automated checks: required fields, row count, duplicate IDs, missing cells, binary target, positive credit limits, plausible age, valid sex codes and non-negative payment amounts.
+
+## LLM servicing safety module
+
+`data/sample/llm_servicing_cases.jsonl` and `lending_ai_lab.llm_eval` provide an offline safety harness for a servicing assistant. The tests require escalation for high-risk requests, approved policy citations for factual claims and failure on unsupported guarantees. Deterministic systems remain the source of truth for balances, fees, eligibility, account actions and credit decisions.
+
+## Production blockers
+
+This public benchmark cannot support production promotion because it lacks:
+
+- point-in-time application timestamps;
+- UK customers and policy context;
+- rejected-applicant outcomes;
+- loss-given-default and treatment-effect evidence;
+- macroeconomic and policy-change cohorts;
+- independent model validation.
+
+A production programme would next require point-in-time internal data, temporal outcome validation, reject-inference analysis, customer-impact review, approved reason codes, monitoring thresholds, a fallback model and a tested rollback path.
