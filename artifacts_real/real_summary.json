@@ -1,0 +1,10 @@
+{
+  "dataset": "UCI Default of Credit Card Clients",
+  "n_customers": 30000,
+  "default_rate": 0.2212,
+  "best_model": "Histogram gradient boosting",
+  "best_roc_auc": 0.7860535324330647,
+  "validation": "Five-fold stratified customer-level cross-validation; not temporal validation",
+  "release_decision": "Research benchmark only; no production promotion without point-in-time UK data",
+  "real_data": true
+}
