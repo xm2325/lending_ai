@@ -1,0 +1,111 @@
+name: deep-real-data-benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      epochs:
+        description: "Maximum epochs per neural fold"
+        required: false
+        default: "6"
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deep-real-benchmark.yml'
+      - 'src/lending_ai_lab/deep_real_experiment.py'
+      - 'src/lending_ai_lab/models/sequence.py'
+      - 'src/lending_ai_lab/training.py'
+      - 'src/lending_ai_lab/evaluation/**'
+      - 'scripts/build_deep_report.py'
+      - 'scripts/build_real_dashboard.py'
+      - 'tests/**'
+      - 'pyproject.toml'
+  schedule:
+    - cron: '41 5 2 * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deep-real-data-benchmark-main
+  cancel-in-progress: false
+
+jobs:
+  shared-fold-deep-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONHASHSEED: '42'
+      OMP_NUM_THREADS: '4'
+      MKL_NUM_THREADS: '4'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,uci]'
+
+      - name: Verify attributed source data
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f data/raw/default_of_credit_card_clients.xls
+          sha256sum -c data/raw/SHA256SUMS
+
+      - name: Validate code
+        run: |
+          ruff check src tests scripts
+          pytest -q
+
+      - name: Run shared-fold deep benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          epochs='${{ github.event.inputs.epochs }}'
+          epochs="${epochs:-6}"
+          rm -rf artifacts_deep
+          python -m lending_ai_lab.cli deep-uci \
+            --data-path data/raw/default_of_credit_card_clients.xls \
+            --output-dir artifacts_deep \
+            --folds 3 \
+            --epochs "$epochs" \
+            --seed 42
+          python scripts/build_deep_report.py \
+            --artifacts artifacts_deep \
+            --output docs/deep_real_results.md
+          python scripts/build_real_dashboard.py \
+            --artifacts artifacts_deep \
+            --output site/real/index.html
+
+      - name: Upload reproducibility bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-uci-shared-fold-benchmark
+          path: |
+            artifacts_deep/
+            docs/deep_real_results.md
+            site/real/index.html
+          retention-days: 90
+
+      - name: Commit generated evidence
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts_deep docs/deep_real_results.md site/real/index.html
+          if git diff --cached --quiet; then
+            echo 'No deep benchmark changes to commit.'
+          else
+            git commit -m 'Update deep UCI benchmark evidence'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
