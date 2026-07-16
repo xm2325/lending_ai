@@ -1,0 +1,20 @@
+seed: 42
+n_samples: 12000
+sequence_length: 6
+sequence_features:
+  - utilisation
+  - payment_ratio
+  - delinquency
+  - balance_change
+  - cash_share
+static_features:
+  - log_credit_limit
+  - tenure_years
+  - active_accounts
+protected_audit_features:
+  - sex
+  - age_band
+split:
+  train_cohorts: [0, 1, 2, 3, 4, 5, 6, 7]
+  validation_cohorts: [8, 9]
+  test_cohorts: [10, 11]

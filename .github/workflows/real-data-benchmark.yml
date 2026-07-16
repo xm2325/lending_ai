@@ -1,0 +1,121 @@
+name: real-data-benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/real-data-benchmark.yml'
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'scripts/**'
+      - 'data/raw/.gitkeep'
+  schedule:
+    - cron: '17 5 1 * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: real-data-benchmark-main
+  cancel-in-progress: false
+
+jobs:
+  uci-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,uci]'
+
+      - name: Download official UCI dataset
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p data/raw
+          url='https://archive.ics.uci.edu/static/public/350/default%2Bof%2Bcredit%2Bcard%2Bclients.zip'
+          curl --fail --location --retry 5 --retry-all-errors "$url" -o /tmp/uci_default.zip
+          unzip -o /tmp/uci_default.zip -d /tmp/uci_default
+          source_file="$(find /tmp/uci_default -maxdepth 3 -type f -iname '*.xls' | head -n 1)"
+          test -n "$source_file"
+          cp "$source_file" 'data/raw/default_of_credit_card_clients.xls'
+          sha256sum 'data/raw/default_of_credit_card_clients.xls' > data/raw/SHA256SUMS
+
+      - name: Record source and licence
+        shell: bash
+        run: |
+          set -euo pipefail
+          fetched_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          checksum="$(cut -d' ' -f1 data/raw/SHA256SUMS)"
+          cat > data/raw/SOURCE.md <<EOF
+          # Data provenance
+
+          - Dataset: Default of Credit Card Clients
+          - Creator: I-Cheng Yeh
+          - Repository: UCI Machine Learning Repository
+          - Dataset ID: 350
+          - DOI: https://doi.org/10.24432/C55S3H
+          - Official download: https://archive.ics.uci.edu/static/public/350/default%2Bof%2Bcredit%2Bcard%2Bclients.zip
+          - Licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
+          - Retrieved by GitHub Actions: ${fetched_at}
+          - Stored file: data/raw/default_of_credit_card_clients.xls
+          - SHA-256: ${checksum}
+
+          The data describe 30,000 credit-card clients in Taiwan and six monthly records from April to September 2005. They are included for reproducibility under CC BY 4.0. They do not represent Capital One, the United Kingdom, current lending policy, or production performance.
+          EOF
+
+      - name: Validate code
+        run: |
+          ruff check src tests scripts
+          pytest -q
+
+      - name: Run full real-data benchmark
+        run: |
+          rm -rf artifacts_real
+          python -m lending_ai_lab.cli uci \
+            --data-path data/raw/default_of_credit_card_clients.xls \
+            --output-dir artifacts_real
+          python scripts/build_real_report.py \
+            --artifacts artifacts_real \
+            --output docs/real_results.md
+
+      - name: Upload reproducibility bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: uci-real-data-benchmark
+          path: |
+            data/raw/SOURCE.md
+            data/raw/SHA256SUMS
+            data/raw/default_of_credit_card_clients.xls
+            artifacts_real/
+            docs/real_results.md
+          retention-days: 90
+
+      - name: Commit attributed source data and benchmark results
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/raw/default_of_credit_card_clients.xls \
+                  data/raw/SOURCE.md data/raw/SHA256SUMS \
+                  artifacts_real docs/real_results.md
+          if git diff --cached --quiet; then
+            echo 'No benchmark changes to commit.'
+          else
+            git commit -m 'Add attributed UCI data and real benchmark results [skip ci]'
+            git push origin HEAD:main
+          fi
